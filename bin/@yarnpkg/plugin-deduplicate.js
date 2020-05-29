@@ -149,8 +149,7 @@ module.exports = {
 
   const clipanion_1 = __webpack_require__(4);
 
-  const semver = __importStar(__webpack_require__(5)); // eslint-disable-next-line arca/no-default-export
-
+  const semver = __importStar(__webpack_require__(5));
 
   class DeduplicateCommand extends cli_1.BaseCommand {
     async execute() {
@@ -158,6 +157,7 @@ module.exports = {
       const {
         project
       } = await core_1.Project.find(configuration, this.context.cwd);
+      await project.restoreInstallState();
       const deduplicateReport = await core_1.StreamReport.start({
         configuration,
         stdout: this.context.stdout,
@@ -219,15 +219,18 @@ module.exports = {
 
       if (locatorHashes !== undefined && locatorHashes.size > 1) {
         const candidates = Array.from(locatorHashes).map(locatorHash => {
+          // TODO: why would this be undefined if the locatorHashes come from idents
+          // that are from storeProjects?
           const pkg = project.storedPackages.get(locatorHash);
 
-          if (core_2.structUtils.isVirtualLocator(pkg)) {
+          if (pkg !== undefined && core_2.structUtils.isVirtualLocator(pkg)) {
             const sourceLocator = core_2.structUtils.devirtualizeLocator(pkg);
             return project.storedPackages.get(sourceLocator.locatorHash);
           }
 
           return pkg;
         }).filter(sourcePackage => {
+          if (sourcePackage === undefined) return false;
           if (sourcePackage.version === null) return false;
           return semver.satisfies(sourcePackage.version, semverMatch[1]);
         }).sort((a, b) => {
